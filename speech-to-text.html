@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="th" class="bg-slate-900 text-white">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบถอดเสียงเป็นข้อความ (Speech to Text)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen flex flex-col items-center p-6 pt-12">
+    
+    <div class="w-full max-w-5xl flex flex-col items-center">
+        <!-- Navigation Back -->
+        <div class="w-full mb-8">
+            <a href="index.html" class="inline-flex items-center text-emerald-400 hover:text-emerald-300 font-bold text-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded px-2 py-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                กลับไปหน้าหลัก
+            </a>
+        </div>
+
+        <h1 class="text-4xl md:text-5xl font-bold mb-10 text-center">ระบบถอดเสียงเป็นข้อความ</h1>
+
+        <!-- Controls -->
+        <div class="flex gap-6 mb-12">
+            <button id="startBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-6 px-12 rounded-2xl text-2xl shadow-xl transition-all hover:scale-105 focus:outline-none focus:ring-4 focus:ring-emerald-400 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+                เริ่มบันทึกเสียง
+            </button>
+            <button id="stopBtn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-6 px-12 rounded-2xl text-2xl shadow-xl transition-all hover:scale-105 opacity-50 cursor-not-allowed focus:outline-none focus:ring-4 focus:ring-red-400 flex items-center" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                </svg>
+                หยุดบันทึก
+            </button>
+        </div>
+
+        <!-- Status Indicator -->
+        <div id="statusIndicator" class="mb-6 flex items-center text-2xl font-bold text-slate-400">
+            <div class="w-4 h-4 rounded-full bg-slate-500 mr-3" id="statusDot"></div>
+            <span id="statusText">รอการกดเริ่ม...</span>
+        </div>
+
+        <!-- Transcription Container -->
+        <div class="w-full bg-slate-800 rounded-3xl p-10 min-h-[400px] border-4 border-slate-700 shadow-2xl relative">
+            <p id="finalText" class="text-5xl md:text-6xl font-bold leading-tight text-white inline"></p>
+            <p id="interimText" class="text-5xl md:text-6xl font-bold leading-tight text-emerald-400 opacity-80 inline"></p>
+            
+            <div class="absolute bottom-6 right-6 text-slate-500 font-medium">
+                รองรับภาษาไทย
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const finalTextEl = document.getElementById('finalText');
+        const interimTextEl = document.getElementById('interimText');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+
+        let finalTranscript = '';
+        let recognition = null;
+        let isManualStop = false; // สำหรับเช็คว่าผู้ใช้กดหยุดเองหรือไม่
+
+        // ตรวจสอบการรองรับของเบราว์เซอร์
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert('ขออภัย เบราว์เซอร์ของคุณไม่รองรับระบบสั่งการด้วยเสียง กรุณาใช้ Google Chrome หรือ Edge');
+            startBtn.disabled = true;
+            startBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            statusText.textContent = 'เบราว์เซอร์ไม่รองรับ';
+        } else {
+            // ตั้งค่า Web Speech API
+            recognition = new SpeechRecognition();
+            recognition.continuous = true; // ทำงานต่อเนื่อง
+            recognition.interimResults = true; // แสดงผลระหว่างพูด
+            recognition.lang = 'th-TH'; // ภาษาไทย
+            recognition.maxAlternatives = 1;
+
+            recognition.onstart = function() {
+                startBtn.disabled = true;
+                startBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                stopBtn.disabled = false;
+                stopBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                
+                statusDot.classList.replace('bg-slate-500', 'bg-red-500');
+                statusDot.classList.add('animate-pulse');
+                statusText.textContent = 'กำลังฟัง... (พูดได้เลย)';
+                statusText.classList.add('text-red-500');
+            };
+
+            recognition.onresult = function(event) {
+                let interimTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript + ' ';
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+
+                // แสดงผลอักษรขนาดใหญ่
+                finalTextEl.textContent = finalTranscript;
+                interimTextEl.textContent = interimTranscript;
+
+                // เลื่อนหน้าจอลงเมื่อข้อความยาวขึ้น
+                window.scrollTo(0, document.body.scrollHeight);
+            };
+
+            recognition.onerror = function(event) {
+                console.error('Speech recognition error detected: ', event.error);
+                statusText.textContent = 'ข้อผิดพลาด: ' + event.error;
+                
+                if (event.error === 'not-allowed') {
+                    alert('กรุณาอนุญาตให้ใช้งานไมโครโฟน โดยดูที่ไอคอนแม่กุญแจบน Address bar');
+                    isManualStop = true;
+                }
+                if (event.error === 'network') {
+                    alert('ปัญหาเครือข่าย: การถอดเสียงภาษาไทยจำเป็นต้องใช้อินเทอร์เน็ต');
+                }
+            };
+
+            recognition.onend = function() {
+                // เบราว์เซอร์อาจจะตัดเองเมื่อเงียบไปนาน หากไม่ได้กดหยุดเอง ให้เริ่มใหม่
+                if (!isManualStop) {
+                    console.log('Auto-restarting recognition...');
+                    try {
+                        recognition.start();
+                        return; // ไม่ต้องอัปเดต UI ว่าหยุด
+                    } catch(e) {
+                        console.error('Failed to auto-restart', e);
+                    }
+                }
+
+                // หากถูกบังคับหยุดเอง
+                startBtn.disabled = false;
+                startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                stopBtn.disabled = true;
+                stopBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+                statusDot.classList.replace('bg-red-500', 'bg-slate-500');
+                statusDot.classList.remove('animate-pulse');
+                statusText.textContent = 'หยุดการบันทึกแล้ว';
+                statusText.classList.remove('text-red-500');
+            };
+
+            // กำหนด Event ปุ่มกด
+            startBtn.addEventListener('click', () => {
+                isManualStop = false;
+                try {
+                    recognition.start();
+                } catch(e) {
+                    console.log('Recognition already started.', e);
+                }
+            });
+
+            stopBtn.addEventListener('click', () => {
+                isManualStop = true;
+                recognition.stop();
+            });
+        }
+    </script>
+</body>
+</html>
