@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="th" class="bg-slate-900 text-white">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบแปลภาษามือ (Sign Language Translation)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- MediaPipe Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+    
+    <div class="w-full max-w-4xl flex flex-col items-center">
+        <!-- Navigation Back -->
+        <div class="w-full mb-6">
+            <a href="index.html" class="inline-flex items-center text-blue-400 hover:text-blue-300 font-bold text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                กลับไปหน้าหลัก
+            </a>
+        </div>
+
+        <h1 class="text-4xl font-bold mb-8 text-center">ระบบแปลภาษามือ</h1>
+
+        <!-- Video and Canvas Container -->
+        <div class="relative w-full max-w-2xl bg-black rounded-2xl overflow-hidden border-4 border-slate-700 shadow-2xl mb-8 aspect-video">
+            <video class="input_video absolute inset-0 w-full h-full object-cover hidden" playsinline></video>
+            <canvas class="output_canvas absolute inset-0 w-full h-full object-cover"></canvas>
+            
+            <div id="loading" class="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-10">
+                <p class="text-2xl font-bold animate-pulse text-blue-400">กำลังโหลดกล้องและ AI โมเดล...</p>
+            </div>
+        </div>
+
+        <!-- Result Text Container -->
+        <div class="w-full max-w-2xl bg-slate-800 p-8 rounded-2xl border-2 border-slate-600 text-center shadow-lg">
+            <p class="text-xl text-slate-400 mb-2">ผลลัพธ์การตรวจจับท่าทาง:</p>
+            <p id="gestureResult" class="text-5xl font-extrabold text-blue-400 tracking-wide min-h-[60px]">รอตรวจจับ...</p>
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        const videoElement = document.getElementsByClassName('input_video')[0];
+        const canvasElement = document.getElementsByClassName('output_canvas')[0];
+        const canvasCtx = canvasElement.getContext('2d');
+        const loadingElement = document.getElementById('loading');
+        const gestureResult = document.getElementById('gestureResult');
+
+        // ตรวจจับท่าทางเบื้องต้นจากพิกัด (Landmarks)
+        function detectGesture(landmarks) {
+            // จุดสำคัญของนิ้วชี้และนิ้วกลาง (อ้างอิงจาก 21 จุดของ MediaPipe)
+            const indexTip = landmarks[8];
+            const indexDip = landmarks[7];
+            const middleTip = landmarks[12];
+            const middleDip = landmarks[11];
+            const ringTip = landmarks[16];
+            const ringDip = landmarks[15];
+            const pinkyTip = landmarks[20];
+            const pinkyDip = landmarks[19];
+            
+            // เช็คว่านิ้วชี้และนิ้วกลางยกขึ้น (แกน y น้อยลงคือชี้ขึ้น)
+            const isIndexUp = indexTip.y < indexDip.y;
+            const isMiddleUp = middleTip.y < middleDip.y;
+            const isRingDown = ringTip.y > ringDip.y;
+            const isPinkyDown = pinkyTip.y > pinkyDip.y;
+
+            if (isIndexUp && isMiddleUp && isRingDown && isPinkyDown) {
+                return "ชู 2 นิ้ว (สู้ๆ / V-Sign)";
+            }
+            if (isIndexUp && !isMiddleUp && isRingDown && isPinkyDown) {
+                return "ชู 1 นิ้ว (หมายเลข 1)";
+            }
+            
+            return "กำลังประมวลผล...";
+        }
+
+        // ฟังก์ชันรับผลลัพธ์จาก MediaPipe
+        function onResults(results) {
+            // ปิดจอโหลดเมื่อได้เฟรมแรก
+            if(loadingElement) loadingElement.style.display = 'none';
+
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(
+                results.image, 0, 0, canvasElement.width, canvasElement.height);
+            
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    // วาดโครงร่างมือ (แยกส่วน Logic คลีนๆ)
+                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS,
+                                 {color: '#00FF00', lineWidth: 5});
+                    drawLandmarks(canvasCtx, landmarks, {color: '#FF0000', lineWidth: 2});
+                    
+                    // อัปเดตข้อความแปลท่าทาง
+                    const gesture = detectGesture(landmarks);
+                    gestureResult.textContent = gesture;
+                }
+            } else {
+                gestureResult.textContent = "ไม่พบมือในเฟรม";
+            }
+            canvasCtx.restore();
+        }
+
+        // ตั้งค่า MediaPipe Hands
+        const hands = new Hands({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        }});
+        
+        hands.setOptions({
+            maxNumHands: 1, // จำกัด 1 มือเพื่อประสิทธิภาพ
+            modelComplexity: 0, // ลดความซับซ้อนเพื่อให้รันบนคอมสเปคต่ำได้ลื่น
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+        
+        hands.onResults(onResults);
+
+        // เริ่มต้นใช้งานกล้อง
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({image: videoElement});
+            },
+            width: 1280,
+            height: 720
+        });
+        
+        camera.start();
+
+        // ปรับขนาด Canvas ให้พอดี
+        window.addEventListener('resize', () => {
+            canvasElement.width = videoElement.videoWidth || 1280;
+            canvasElement.height = videoElement.videoHeight || 720;
+        });
+    </script>
+</body>
+</html>
