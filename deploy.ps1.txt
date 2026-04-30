@@ -1,0 +1,102 @@
+param (
+    [string]$RepoName = "deaf-assistant-portal"
+)
+
+# ==============================================================================
+# STEP 1: CONFIGURATION (USER INPUT)
+# ==============================================================================
+# Instructions: Paste your GitHub Personal Access Token inside the quotes below.
+# Safety: For public sharing, leave this as "" or use environment variable.
+$token = $env:GITHUB_TOKEN
+
+# ==============================================================================
+# STEP 2: CORE PROTOCOL LOGIC (DO NOT MODIFY)
+# ==============================================================================
+
+## 1. MANDATORY RULES
+# - Zero-Local Footprint: All files are kept in memory until uploaded.
+# - Security Bypass: Executable scripts (.bat, .ps1, .sh) are uploaded as .txt.
+# - Language: All metadata and commits must be in English.
+# - Encoding: UTF-8 forced for all Base64 conversions.
+
+if (-not $token -or $token -eq "put_your_token_here") {
+    Write-Error "CRITICAL: GITHUB_TOKEN is missing or not configured!"
+    Write-Host "Please set the GITHUB_TOKEN environment variable first:"
+    Write-Host '$env:GITHUB_TOKEN="your_personal_access_token"'
+    exit
+}
+
+$headers = @{
+    Authorization = "Bearer $token"
+    Accept = "application/vnd.github.v3+json"
+}
+
+# Fetch Username
+try {
+    $user = Invoke-RestMethod -Uri "https://api.github.com/user" -Headers $headers
+    $username = $user.login
+    Write-Host "Authenticated as: $username" -ForegroundColor Green
+} catch {
+    Write-Error "Authentication Failed! Check your Token."
+    exit
+}
+
+## 3. SCAFFOLDING ENGINE
+function Push-File-To-Cloud($repoName, $filePath, $content) {
+    # [NEW] Security Guard: Skip sensitive and junk files
+    $ignoreList = @(".env", "*.token", "Thumbs.db", ".vscode")
+    foreach ($ignoreItem in $ignoreList) {
+        if ($filePath -like $ignoreItem) {
+            Write-Host "Ignore: Skipping $filePath (Security Policy)" -ForegroundColor Gray
+            return
+        }
+    }
+
+    # Rule: Rename executable scripts to .txt
+    $finalPath = $filePath
+    if ($filePath -match '\.(bat|ps1|sh|cmd)$') {
+        $finalPath = $filePath + ".txt"
+        Write-Host "Security: Renaming $filePath to $finalPath" -ForegroundColor Yellow
+    }
+
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($content)
+    $base64 = [System.Convert]::ToBase64String($bytes)
+    
+    $body = @{ 
+        message = "Initial cloud-native commit via MASTER_PROTOCOL: $finalPath"
+        content = $base64 
+    } | ConvertTo-Json -Depth 10
+
+    $uri = "https://api.github.com/repos/$username/$repoName/contents/$finalPath"
+    
+    try {
+        Invoke-RestMethod -Uri $uri -Method Put -Headers $headers -Body $body
+        Write-Host "Success: $finalPath uploaded." -ForegroundColor Cyan
+    } catch {
+        Write-Host "Failed to upload $finalPath. Ensure the repository exists and token has 'repo' scope." -ForegroundColor Red
+    }
+}
+
+# ---------------------------------------------------------
+# UPLOAD FILES
+# ---------------------------------------------------------
+Write-Host "Starting upload to $username/$RepoName..." -ForegroundColor Magenta
+
+# Upload index.html
+$indexContent = Get-Content -Path ".\index.html" -Raw -Encoding UTF8
+Push-File-To-Cloud -repoName $RepoName -filePath "index.html" -content $indexContent
+
+# Upload sign-language.html
+$signLanguageContent = Get-Content -Path ".\sign-language.html" -Raw -Encoding UTF8
+Push-File-To-Cloud -repoName $RepoName -filePath "sign-language.html" -content $signLanguageContent
+
+# Upload speech-to-text.html
+$speechToTextContent = Get-Content -Path ".\speech-to-text.html" -Raw -Encoding UTF8
+Push-File-To-Cloud -repoName $RepoName -filePath "speech-to-text.html" -content $speechToTextContent
+
+# Upload this deploy script (will be renamed to .txt automatically by Master Protocol)
+$deployContent = Get-Content -Path ".\deploy.ps1" -Raw -Encoding UTF8
+Push-File-To-Cloud -repoName $RepoName -filePath "deploy.ps1" -content $deployContent
+
+Write-Host "Deployment completed. Please check your GitHub repository:" -ForegroundColor Green
+Write-Host "https://github.com/$username/$RepoName" -ForegroundColor Cyan
