@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="th" class="bg-slate-900 text-white">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ศูนย์รวมฟีเจอร์สำหรับผู้พิการทางหู (Deaf Assistant Portal)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#10b981'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-4xl w-full">
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold mb-4 text-white">Deaf Assistant Portal</h1>
+            <p class="text-xl text-slate-300">เข้าถึงการสื่อสารได้อย่างไร้รอยต่อ</p>
+        </header>
+
+        <!-- Cards Container -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            
+            <!-- Card 1: ระบบแปลภาษามือ -->
+            <a href="sign-language.html" 
+               class="block group bg-slate-800 rounded-2xl p-8 border-2 border-slate-700 hover:border-primary transition-all duration-300 shadow-lg cursor-pointer focus:outline-none focus:ring-4 focus:ring-primary"
+               aria-label="เปิดระบบแปลภาษามือ">
+                <div class="h-20 w-20 bg-primary/20 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
+                    </svg>
+                </div>
+                <h2 class="text-3xl font-bold mb-4 text-white group-hover:text-primary transition-colors">ระบบแปลภาษามือ</h2>
+                <p class="text-lg text-slate-300 leading-relaxed">
+                    ใช้กล้องเว็บแคมเพื่อจับท่าทางและแปลภาษามือเป็นข้อความแบบเรียลไทม์
+                </p>
+            </a>
+
+            <!-- Card 2: ระบบแปลเสียงเป็นข้อความ -->
+            <a href="speech-to-text.html" 
+               class="block group bg-slate-800 rounded-2xl p-8 border-2 border-slate-700 hover:border-secondary transition-all duration-300 shadow-lg cursor-pointer focus:outline-none focus:ring-4 focus:ring-secondary"
+               aria-label="เปิดระบบแปลเสียงเป็นข้อความ">
+                <div class="h-20 w-20 bg-secondary/20 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                </div>
+                <h2 class="text-3xl font-bold mb-4 text-white group-hover:text-secondary transition-colors">ถอดเสียงเป็นข้อความ</h2>
+                <p class="text-lg text-slate-300 leading-relaxed">
+                    แสดงข้อความขนาดใหญ่บนหน้าจอทันทีที่มีคนพูด เพื่อการสื่อสารที่ชัดเจน
+                </p>
+            </a>
+
+        </div>
+    </div>
+</body>
+</html>
